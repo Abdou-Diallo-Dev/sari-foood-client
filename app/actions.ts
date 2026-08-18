@@ -9,6 +9,7 @@ export async function creerCommandeEnLigne(params: {
   clientNom: string;
   clientTelephone: string;
   adresseLivraison: string;
+  zoneLivraisonId: string | null;
   modePaiement: ModePaiement;
   panier: PanierItem[];
 }): Promise<{ error?: string; url?: string }> {
@@ -75,6 +76,23 @@ export async function creerCommandeEnLigne(params: {
     total += prixUnitaire * item.quantite;
   }
 
+  // Comme pour les articles : le frais de livraison vient de la base, jamais
+  // du navigateur (le manager le fixe par zone, cf. admin/livraison).
+  let fraisLivraison = 0;
+  if (params.zoneLivraisonId) {
+    const { data: zone } = await supabase
+      .from("zones_livraison")
+      .select("frais, actif, restaurant_id")
+      .eq("id", params.zoneLivraisonId)
+      .maybeSingle();
+
+    if (!zone || !zone.actif || zone.restaurant_id !== restaurantId) {
+      return { error: "Zone de livraison invalide." };
+    }
+    fraisLivraison = Number(zone.frais);
+    total += fraisLivraison;
+  }
+
   const { data: commandeEnLigne, error: insertError } = await supabase
     .from("commandes_en_ligne")
     .insert({
@@ -82,6 +100,8 @@ export async function creerCommandeEnLigne(params: {
       client_nom: clientNom,
       client_telephone: clientTelephone,
       adresse_livraison: adresseLivraison,
+      zone_livraison_id: params.zoneLivraisonId,
+      frais_livraison: fraisLivraison,
       panier: panierValide,
       total,
       mode_paiement: params.modePaiement,

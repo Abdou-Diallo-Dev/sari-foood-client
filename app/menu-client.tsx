@@ -2,8 +2,9 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { creerCommandeEnLigne } from "./actions";
-import { MODES_PAIEMENT, type ModePaiement, type ProduitMenu } from "@/lib/types";
+import { MODES_PAIEMENT, type ModePaiement, type ProduitMenu, type ZoneLivraison } from "@/lib/types";
 import { lireClientInfo, ecrireClientInfo } from "@/lib/client-info";
+import { lirePanierPrefill } from "@/lib/panier-prefill";
 
 const POLES = [
   { value: "patisserie", label: "Pâtisserie" },
@@ -13,11 +14,18 @@ const POLES = [
 
 type LignePanier = { produit_id: string; quantite: number };
 
-export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
+export function MenuClient({
+  produits,
+  zonesLivraison,
+}: {
+  produits: ProduitMenu[];
+  zonesLivraison: ZoneLivraison[];
+}) {
   const [panier, setPanier] = useState<Record<string, LignePanier>>({});
   const [clientNom, setClientNom] = useState("");
   const [clientTelephone, setClientTelephone] = useState("");
   const [adresseLivraison, setAdresseLivraison] = useState("");
+  const [zoneLivraisonId, setZoneLivraisonId] = useState("");
   const [modePaiement, setModePaiement] = useState<ModePaiement>("wave");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -28,6 +36,23 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
     setClientNom(info.nom);
     setClientTelephone(info.telephone);
     setAdresseLivraison(info.adresse);
+  }, []);
+
+  // Recommande la même commande depuis /mes-commandes : reconstitue le
+  // panier à partir des produits toujours au menu (un article retiré depuis
+  // est simplement ignoré).
+  useEffect(() => {
+    const prefill = lirePanierPrefill();
+    if (!prefill) return;
+    setPanier((prev) => {
+      const suivant = { ...prev };
+      for (const item of prefill) {
+        if (!produits.some((p) => p.id === item.produit_id)) continue;
+        suivant[item.produit_id] = { produit_id: item.produit_id, quantite: item.quantite };
+      }
+      return suivant;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule lecture au montage
   }, []);
 
   const produitsParPole = useMemo(() => {
@@ -44,10 +69,13 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
   }, [produits]);
 
   const lignes = Object.values(panier);
-  const total = lignes.reduce((s, l) => {
+  const sousTotal = lignes.reduce((s, l) => {
     const p = produits.find((prod) => prod.id === l.produit_id);
     return s + (p?.prix ?? 0) * l.quantite;
   }, 0);
+  const zoneChoisie = zonesLivraison.find((z) => z.id === zoneLivraisonId);
+  const fraisLivraison = zoneChoisie?.frais ?? 0;
+  const total = sousTotal + fraisLivraison;
 
   function ajouter(p: ProduitMenu) {
     setMessage(null);
@@ -75,6 +103,9 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
     if (!clientNom.trim()) return setMessage("Indiquez votre nom.");
     if (!clientTelephone.trim()) return setMessage("Indiquez votre numéro de téléphone.");
     if (!adresseLivraison.trim()) return setMessage("Indiquez votre adresse de livraison.");
+    if (zonesLivraison.length > 0 && !zoneLivraisonId) {
+      return setMessage("Choisissez votre zone de livraison.");
+    }
     if (lignes.length === 0) return setMessage("Votre panier est vide.");
 
     startTransition(async () => {
@@ -82,6 +113,7 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
         clientNom,
         clientTelephone,
         adresseLivraison,
+        zoneLivraisonId: zoneLivraisonId || null,
         modePaiement,
         panier: lignes,
       });
@@ -199,11 +231,25 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
           </ul>
         )}
 
-        <div className="flex items-center justify-between border-t border-line pt-3">
-          <span className="font-bold text-ink-soft">Total</span>
-          <span className="font-display text-lg font-extrabold text-ink">
-            {total.toLocaleString("fr-FR")} F
-          </span>
+        <div className="flex flex-col gap-1 border-t border-line pt-3">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-ink-soft">Sous-total</span>
+            <span className="text-ink">{sousTotal.toLocaleString("fr-FR")} F</span>
+          </div>
+          {zonesLivraison.length > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-ink-soft">Livraison</span>
+              <span className="text-ink">
+                {zoneChoisie ? `${fraisLivraison.toLocaleString("fr-FR")} F` : "—"}
+              </span>
+            </div>
+          )}
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-ink-soft">Total</span>
+            <span className="font-display text-lg font-extrabold text-ink">
+              {total.toLocaleString("fr-FR")} F
+            </span>
+          </div>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -220,10 +266,24 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
             type="tel"
             className="rounded-[9px] border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-orange"
           />
+          {zonesLivraison.length > 0 && (
+            <select
+              value={zoneLivraisonId}
+              onChange={(e) => setZoneLivraisonId(e.target.value)}
+              className="rounded-[9px] border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-orange"
+            >
+              <option value="">Choisir votre zone de livraison</option>
+              {zonesLivraison.map((z) => (
+                <option key={z.id} value={z.id}>
+                  {z.nom} — {z.frais.toLocaleString("fr-FR")} F
+                </option>
+              ))}
+            </select>
+          )}
           <input
             value={adresseLivraison}
             onChange={(e) => setAdresseLivraison(e.target.value)}
-            placeholder="Votre adresse de livraison"
+            placeholder="Adresse précise (rue, repère...)"
             className="rounded-[9px] border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-orange"
           />
         </div>

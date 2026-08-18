@@ -12,6 +12,12 @@ export type PanierItem = {
   quantite: number;
 };
 
+export type ZoneLivraison = {
+  id: string;
+  nom: string;
+  frais: number;
+};
+
 export const MODES_PAIEMENT = [
   { value: "wave", label: "Wave" },
   { value: "orange_money", label: "Orange Money" },

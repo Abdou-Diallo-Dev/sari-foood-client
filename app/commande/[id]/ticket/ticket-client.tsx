@@ -8,6 +8,7 @@ export type TicketCommande = {
   restaurantAdresse: string | null;
   clientNom: string;
   adresseLivraison: string | null;
+  fraisLivraison: number;
 };
 
 export type TicketLigne = {
@@ -97,6 +98,13 @@ export function TicketClient({
             ))}
           </tbody>
         </table>
+
+        {commande.fraisLivraison > 0 && (
+          <div className="flex justify-between border-t border-dashed border-line pt-2">
+            <span className="text-ink-soft">Frais de livraison</span>
+            <span>{commande.fraisLivraison.toLocaleString("fr-FR")} F</span>
+          </div>
+        )}
 
         <div className="flex items-center justify-between border-t border-dashed border-line pt-3">
           <span className="font-display font-extrabold">Total</span>

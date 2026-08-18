@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { simulerPaiementReussi, simulerPaiementEchec } from "../actions";
 
 export function PaiementSimuleActions({ id }: { id: string }) {
@@ -38,6 +39,13 @@ export function PaiementSimuleActions({ id }: { id: string }) {
         Simuler un échec
       </button>
       {message && <p className="text-sm font-bold text-red-600">{message}</p>}
+
+      <Link
+        href="/"
+        className="mt-1 text-center text-sm font-bold text-ink-soft hover:text-orange hover:underline"
+      >
+        ← Retour
+      </Link>
     </div>
   );
 }

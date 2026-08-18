@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { lireClientInfo } from "@/lib/client-info";
+import { ecrirePanierPrefill } from "@/lib/panier-prefill";
 import { rechercherCommandes, type CommandeHistorique } from "./actions";
 
 const LABELS_STATUT: Record<CommandeHistorique["statut"], { label: string; couleur: string }> = {
@@ -13,9 +15,15 @@ const LABELS_STATUT: Record<CommandeHistorique["statut"], { label: string; coule
 };
 
 export default function MesCommandesPage() {
+  const router = useRouter();
   const [telephone, setTelephone] = useState("");
   const [commandes, setCommandes] = useState<CommandeHistorique[] | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  function commanderANouveau(commande: CommandeHistorique) {
+    ecrirePanierPrefill(commande.panier);
+    router.push("/");
+  }
 
   useEffect(() => {
     const info = lireClientInfo();
@@ -73,31 +81,44 @@ export default function MesCommandesPage() {
             return (
               <li
                 key={c.id}
-                className="flex items-center justify-between gap-3 rounded-[12px] border border-line bg-paper px-4 py-3"
+                className="flex flex-col gap-2.5 rounded-[12px] border border-line bg-paper px-4 py-3"
               >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={`h-2.5 w-2.5 shrink-0 rounded-full ${statut.couleur}`}
-                    title={statut.label}
-                  />
-                  <div>
-                    <p className="text-sm font-bold text-ink">
-                      {c.numero ? `Commande n°${c.numero}` : "Commande"}
-                    </p>
-                    <p className="text-xs text-ink-soft opacity-70">
-                      {date.toLocaleDateString("fr-FR")} à{" "}
-                      {date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} ·{" "}
-                      {statut.label}
-                    </p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 rounded-full ${statut.couleur}`}
+                      title={statut.label}
+                    />
+                    <div>
+                      <p className="text-sm font-bold text-ink">
+                        {c.numero ? `Commande n°${c.numero}` : "Commande"}
+                      </p>
+                      <p className="text-xs text-ink-soft opacity-70">
+                        {date.toLocaleDateString("fr-FR")} à{" "}
+                        {date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} ·{" "}
+                        {statut.label}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-3">
                   <span className="font-bold text-ink">{c.total.toLocaleString("fr-FR")} F</span>
+                </div>
+
+                {c.adresseLivraison && (
+                  <p className="text-xs text-ink-soft">Livraison : {c.adresseLivraison}</p>
+                )}
+
+                <div className="flex items-center gap-3 border-t border-line pt-2">
+                  <button
+                    onClick={() => commanderANouveau(c)}
+                    className="text-xs font-bold text-orange hover:underline"
+                  >
+                    Commander à nouveau
+                  </button>
                   {c.statut === "payee" && (
                     <Link
                       href={`/commande/${c.id}/ticket`}
                       target="_blank"
-                      className="text-xs font-bold text-orange hover:underline"
+                      className="text-xs font-bold text-ink-soft hover:underline"
                     >
                       Ticket
                     </Link>

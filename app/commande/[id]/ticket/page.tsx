@@ -12,7 +12,7 @@ export default async function TicketCommandePage({
 
   const { data: commandeEnLigne } = await supabase
     .from("commandes_en_ligne")
-    .select("client_nom, client_telephone, adresse_livraison, statut, commande_id")
+    .select("client_nom, client_telephone, adresse_livraison, frais_livraison, statut, commande_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -44,6 +44,7 @@ export default async function TicketCommandePage({
         restaurantAdresse: restaurant?.adresse ?? null,
         clientNom: commandeEnLigne.client_nom,
         adresseLivraison: commandeEnLigne.adresse_livraison,
+        fraisLivraison: Number(commandeEnLigne.frais_livraison),
       }}
       lignes={(lignes ?? []).map((l) => ({
         nom: (l.produits as unknown as { nom: string } | null)?.nom ?? "",
