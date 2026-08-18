@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { creerCommandeEnLigne, obtenirSoldePoints } from "./actions";
 import { MODES_PAIEMENT, type ModePaiement, type ProduitMenu, type ZoneLivraison } from "@/lib/types";
 import { lireClientInfo, ecrireClientInfo } from "@/lib/client-info";
@@ -86,6 +86,35 @@ export function MenuClient({
     }
     return groupes;
   }, [produits]);
+
+  const polesVisibles = POLES.filter((pole) => Object.keys(produitsParPole[pole.value]).length > 0);
+
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const [poleActif, setPoleActif] = useState<string>(polesVisibles[0]?.value ?? POLES[0].value);
+
+  // Barre d'onglets figée : surligne le pôle actuellement visible pendant
+  // le scroll, plutôt que de dépendre d'un seul clic pour se repérer.
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entrees) => {
+        const visible = entrees.find((e) => e.isIntersecting);
+        if (visible) setPoleActif(visible.target.getAttribute("data-pole") ?? "");
+      },
+      { rootMargin: "-15% 0px -70% 0px" },
+    );
+
+    for (const pole of polesVisibles) {
+      const el = sectionRefs.current[pole.value];
+      if (el) observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sections stables tant que produits ne change pas
+  }, [produits]);
+
+  function allerAuPole(pole: string) {
+    sectionRefs.current[pole]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   const lignes = Object.entries(panier).map(([cle, ligne]) => ({ cle, ...ligne }));
   const sousTotal = lignes.reduce((s, l) => {
@@ -180,6 +209,24 @@ export function MenuClient({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
       <div className="flex flex-col gap-6">
+        {polesVisibles.length > 1 && (
+          <nav className="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto border-b border-line bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-card sm:border sm:px-3">
+            {polesVisibles.map((pole) => (
+              <button
+                key={pole.value}
+                onClick={() => allerAuPole(pole.value)}
+                className={`shrink-0 rounded-[9px] px-3 py-1.5 text-sm font-bold transition ${
+                  poleActif === pole.value
+                    ? "bg-orange text-white"
+                    : "text-ink-soft hover:bg-surface hover:text-ink"
+                }`}
+              >
+                {pole.label}
+              </button>
+            ))}
+          </nav>
+        )}
+
         {clientTelephone.trim() && soldePoints > 0 && produitsEchangeables.length > 0 && (
           <section className="rounded-card border border-green/40 bg-green/5 p-5">
             <h2 className="mb-1 font-display text-lg font-extrabold text-green">
@@ -217,7 +264,14 @@ export function MenuClient({
           if (nomsCategories.length === 0) return null;
 
           return (
-            <section key={pole.value} className="rounded-card border border-line bg-surface p-5">
+            <section
+              key={pole.value}
+              ref={(el) => {
+                sectionRefs.current[pole.value] = el;
+              }}
+              data-pole={pole.value}
+              className="scroll-mt-16 rounded-card border border-line bg-surface p-5"
+            >
               <h2 className="mb-4 font-display text-lg font-extrabold text-orange">{pole.label}</h2>
               <div className="flex flex-col gap-4">
                 {nomsCategories.map((nomCategorie) => (
