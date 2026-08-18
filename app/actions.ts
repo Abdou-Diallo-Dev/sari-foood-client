@@ -8,6 +8,7 @@ import type { PanierItem, ModePaiement } from "@/lib/types";
 export async function creerCommandeEnLigne(params: {
   clientNom: string;
   clientTelephone: string;
+  adresseLivraison: string;
   modePaiement: ModePaiement;
   panier: PanierItem[];
 }): Promise<{ error?: string; url?: string }> {
@@ -17,8 +18,10 @@ export async function creerCommandeEnLigne(params: {
 
   const clientNom = params.clientNom.trim();
   const clientTelephone = params.clientTelephone.trim();
+  const adresseLivraison = params.adresseLivraison.trim();
   if (!clientNom) return { error: "Le nom est obligatoire." };
   if (!clientTelephone) return { error: "Le numéro de téléphone est obligatoire." };
+  if (!adresseLivraison) return { error: "L'adresse de livraison est obligatoire." };
   if (params.panier.length === 0) return { error: "Le panier est vide." };
   if (params.modePaiement !== "wave" && params.modePaiement !== "orange_money") {
     return { error: "Moyen de paiement invalide." };
@@ -78,6 +81,7 @@ export async function creerCommandeEnLigne(params: {
       restaurant_id: restaurantId,
       client_nom: clientNom,
       client_telephone: clientTelephone,
+      adresse_livraison: adresseLivraison,
       panier: panierValide,
       total,
       mode_paiement: params.modePaiement,
@@ -89,6 +93,16 @@ export async function creerCommandeEnLigne(params: {
 
   const successUrl = `${siteUrl}/commande/${commandeEnLigne.id}`;
   const errorUrl = `${siteUrl}/commande/${commandeEnLigne.id}?erreur=1`;
+
+  // Wave/Orange Money ne sont pas encore contractualisés (clés absentes) :
+  // en attendant, on route vers une page de paiement simulée pour pouvoir
+  // tester tout le parcours de commande. Se désactive automatiquement dès
+  // que la clé du moyen concerné est renseignée (cf. app/paiement-simule).
+  const cleManquante =
+    params.modePaiement === "wave" ? !process.env.WAVE_API_KEY : !process.env.ORANGE_MONEY_MERCHANT_KEY;
+  if (cleManquante) {
+    return { url: `${siteUrl}/paiement-simule/${commandeEnLigne.id}` };
+  }
 
   try {
     let checkoutUrl: string;

@@ -4,6 +4,7 @@ export type ProduitMenu = {
   prix: number;
   categorie: string;
   pole: "patisserie" | "boulangerie" | "fastfood";
+  imageUrl: string | null;
 };
 
 export type PanierItem = {
