@@ -112,6 +112,8 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
                               <img
                                 src={p.imageUrl}
                                 alt={p.nom}
+                                loading="lazy"
+                                decoding="async"
                                 className="h-full w-full object-cover"
                               />
                             ) : (
