@@ -5,11 +5,19 @@ export type ProduitMenu = {
   categorie: string;
   pole: "patisserie" | "boulangerie" | "fastfood";
   imageUrl: string | null;
+  coutPoints: number | null;
 };
 
 export type PanierItem = {
   produit_id: string;
   quantite: number;
+  avecPoints?: boolean;
+};
+
+export type ZoneLivraison = {
+  id: string;
+  nom: string;
+  frais: number;
 };
 
 export const MODES_PAIEMENT = [

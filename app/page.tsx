@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
 import { MenuClient } from "./menu-client";
-import type { ProduitMenu } from "@/lib/types";
+import type { ProduitMenu, ZoneLivraison } from "@/lib/types";
 
 export default async function AccueilPage() {
   const restaurantId = process.env.NEXT_PUBLIC_RESTAURANT_ID;
@@ -15,18 +15,33 @@ export default async function AccueilPage() {
   }
 
   const supabase = createPublicClient();
-  const { data: produits } = await supabase
-    .from("produits")
-    .select("id, nom, prix, actif, categorie_id, image_url, categories_produits(nom, pole)")
-    .eq("restaurant_id", restaurantId)
-    .eq("actif", true)
-    .order("nom");
+  const [{ data: produits }, { data: zonesLivraison }] = await Promise.all([
+    supabase
+      .from("produits")
+      .select("id, nom, prix, actif, categorie_id, image_url, cout_points, categories_produits(nom, pole)")
+      .eq("restaurant_id", restaurantId)
+      .eq("actif", true)
+      .order("nom"),
+    supabase
+      .from("zones_livraison")
+      .select("id, nom, frais")
+      .eq("restaurant_id", restaurantId)
+      .eq("actif", true)
+      .order("nom"),
+  ]);
+
+  const zones: ZoneLivraison[] = (zonesLivraison ?? []).map((z) => ({
+    id: z.id,
+    nom: z.nom,
+    frais: Number(z.frais),
+  }));
 
   const produitsMenu: ProduitMenu[] = (produits ?? []).map((p) => ({
     id: p.id,
     nom: p.nom,
     prix: Number(p.prix),
     imageUrl: p.image_url,
+    coutPoints: p.cout_points,
     categorie: (p.categories_produits as unknown as { nom: string; pole: string } | null)?.nom ?? "",
     pole: (p.categories_produits as unknown as { nom: string; pole: string } | null)?.pole as
       | "patisserie"
@@ -51,7 +66,7 @@ export default async function AccueilPage() {
           Le menu n&apos;est pas disponible pour le moment.
         </p>
       ) : (
-        <MenuClient produits={produitsMenu} />
+        <MenuClient produits={produitsMenu} zonesLivraison={zones} />
       )}
     </div>
   );

@@ -8,6 +8,8 @@ export type CommandeHistorique = {
   total: number;
   statut: "en_attente" | "payee" | "echouee" | "expiree";
   created_at: string;
+  adresseLivraison: string | null;
+  panier: { produit_id: string; quantite: number }[];
 };
 
 // Pas de compte client : on identifie l'historique par numéro de téléphone
@@ -20,7 +22,7 @@ export async function rechercherCommandes(telephone: string): Promise<CommandeHi
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("commandes_en_ligne")
-    .select("id, total, statut, created_at, commandes(numero)")
+    .select("id, total, statut, created_at, adresse_livraison, panier, commandes(numero)")
     .eq("restaurant_id", restaurantId)
     .eq("client_telephone", numero)
     .order("created_at", { ascending: false })
@@ -32,5 +34,7 @@ export async function rechercherCommandes(telephone: string): Promise<CommandeHi
     total: Number(c.total),
     statut: c.statut,
     created_at: c.created_at,
+    adresseLivraison: c.adresse_livraison,
+    panier: (c.panier as unknown as { produit_id: string; quantite: number }[] | null) ?? [],
   }));
 }
