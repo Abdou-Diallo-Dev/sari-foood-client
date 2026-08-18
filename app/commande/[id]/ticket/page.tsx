@@ -21,7 +21,7 @@ export default async function TicketCommandePage({
   const [{ data: commande }, { data: lignes }] = await Promise.all([
     supabase
       .from("commandes")
-      .select("numero, total, created_at, restaurants(nom, adresse)")
+      .select("numero, total, created_at, points_utilises, restaurants(nom, adresse)")
       .eq("id", commandeEnLigne.commande_id)
       .single(),
     supabase
@@ -45,6 +45,7 @@ export default async function TicketCommandePage({
         clientNom: commandeEnLigne.client_nom,
         adresseLivraison: commandeEnLigne.adresse_livraison,
         fraisLivraison: Number(commandeEnLigne.frais_livraison),
+        pointsUtilises: commande.points_utilises,
       }}
       lignes={(lignes ?? []).map((l) => ({
         nom: (l.produits as unknown as { nom: string } | null)?.nom ?? "",

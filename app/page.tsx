@@ -18,7 +18,7 @@ export default async function AccueilPage() {
   const [{ data: produits }, { data: zonesLivraison }] = await Promise.all([
     supabase
       .from("produits")
-      .select("id, nom, prix, actif, categorie_id, image_url, categories_produits(nom, pole)")
+      .select("id, nom, prix, actif, categorie_id, image_url, cout_points, categories_produits(nom, pole)")
       .eq("restaurant_id", restaurantId)
       .eq("actif", true)
       .order("nom"),
@@ -41,6 +41,7 @@ export default async function AccueilPage() {
     nom: p.nom,
     prix: Number(p.prix),
     imageUrl: p.image_url,
+    coutPoints: p.cout_points,
     categorie: (p.categories_produits as unknown as { nom: string; pole: string } | null)?.nom ?? "",
     pole: (p.categories_produits as unknown as { nom: string; pole: string } | null)?.pole as
       | "patisserie"

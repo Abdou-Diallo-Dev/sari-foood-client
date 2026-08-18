@@ -9,6 +9,7 @@ export type TicketCommande = {
   clientNom: string;
   adresseLivraison: string | null;
   fraisLivraison: number;
+  pointsUtilises: number;
 };
 
 export type TicketLigne = {
@@ -90,6 +91,7 @@ export function TicketClient({
               <tr key={i}>
                 <td className="py-1 align-top">
                   {l.quantite}× {l.nom}
+                  {l.prix_unitaire === 0 && <span className="text-green"> (offert)</span>}
                 </td>
                 <td className="py-1 text-right align-top font-bold">
                   {(l.quantite * l.prix_unitaire).toLocaleString("fr-FR")} F
@@ -113,7 +115,11 @@ export function TicketClient({
           </span>
         </div>
 
-        <p className="pt-2 text-center text-ink-soft">Merci de votre commande !</p>
+        <p className="pt-2 text-center text-green">
+          {commande.pointsUtilises > 0 && `-${commande.pointsUtilises} pts échangés · `}
+          +1 pt fidélité gagné
+        </p>
+        <p className="text-center text-ink-soft">Merci de votre commande !</p>
       </div>
     </div>
   );

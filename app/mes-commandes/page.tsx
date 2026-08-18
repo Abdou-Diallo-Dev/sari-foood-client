@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { lireClientInfo } from "@/lib/client-info";
 import { ecrirePanierPrefill } from "@/lib/panier-prefill";
+import { obtenirSoldePoints } from "../actions";
 import { rechercherCommandes, type CommandeHistorique } from "./actions";
 
 const LABELS_STATUT: Record<CommandeHistorique["statut"], { label: string; couleur: string }> = {
@@ -18,6 +19,7 @@ export default function MesCommandesPage() {
   const router = useRouter();
   const [telephone, setTelephone] = useState("");
   const [commandes, setCommandes] = useState<CommandeHistorique[] | null>(null);
+  const [soldePoints, setSoldePoints] = useState<number | null>(null);
   const [isPending, startTransition] = useTransition();
 
   function commanderANouveau(commande: CommandeHistorique) {
@@ -31,6 +33,7 @@ export default function MesCommandesPage() {
       setTelephone(info.telephone);
       startTransition(async () => {
         setCommandes(await rechercherCommandes(info.telephone));
+        setSoldePoints(await obtenirSoldePoints(info.telephone));
       });
     }
   }, []);
@@ -38,6 +41,7 @@ export default function MesCommandesPage() {
   function rechercher() {
     startTransition(async () => {
       setCommandes(await rechercherCommandes(telephone));
+      setSoldePoints(await obtenirSoldePoints(telephone));
     });
   }
 
@@ -66,6 +70,12 @@ export default function MesCommandesPage() {
           {isPending ? "Recherche..." : "Voir"}
         </button>
       </div>
+
+      {soldePoints !== null && soldePoints > 0 && (
+        <p className="rounded-[10px] border border-green/40 bg-green/5 px-3.5 py-2.5 text-sm font-bold text-green">
+          🎁 Solde de points fidélité : {soldePoints}
+        </p>
+      )}
 
       {commandes === null ? (
         <p className="text-sm text-ink-soft opacity-70">

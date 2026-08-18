@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useTransition } from "react";
-import { creerCommandeEnLigne } from "./actions";
+import { creerCommandeEnLigne, obtenirSoldePoints } from "./actions";
 import { MODES_PAIEMENT, type ModePaiement, type ProduitMenu, type ZoneLivraison } from "@/lib/types";
 import { lireClientInfo, ecrireClientInfo } from "@/lib/client-info";
 import { lirePanierPrefill } from "@/lib/panier-prefill";
@@ -12,7 +12,11 @@ const POLES = [
   { value: "fastfood", label: "Fast-Food" },
 ] as const;
 
-type LignePanier = { produit_id: string; quantite: number };
+type LignePanier = { produit_id: string; quantite: number; avecPoints?: boolean };
+
+function cleLigne(produitId: string, avecPoints?: boolean) {
+  return avecPoints ? `${produitId}__points` : produitId;
+}
 
 export function MenuClient({
   produits,
@@ -27,6 +31,7 @@ export function MenuClient({
   const [adresseLivraison, setAdresseLivraison] = useState("");
   const [zoneLivraisonId, setZoneLivraisonId] = useState("");
   const [modePaiement, setModePaiement] = useState<ModePaiement>("wave");
+  const [soldePoints, setSoldePoints] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -55,6 +60,20 @@ export function MenuClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- une seule lecture au montage
   }, []);
 
+  // Solde de points recalculé au fil de la saisie du téléphone (identifiant
+  // du client, pas de compte) — un léger débounce évite une requête par frappe.
+  useEffect(() => {
+    const numero = clientTelephone.trim();
+    if (!numero) {
+      setSoldePoints(0);
+      return;
+    }
+    const id = setTimeout(() => {
+      obtenirSoldePoints(numero).then(setSoldePoints);
+    }, 500);
+    return () => clearTimeout(id);
+  }, [clientTelephone]);
+
   const produitsParPole = useMemo(() => {
     const groupes: Record<string, Record<string, ProduitMenu[]>> = {
       patisserie: {},
@@ -68,33 +87,54 @@ export function MenuClient({
     return groupes;
   }, [produits]);
 
-  const lignes = Object.values(panier);
+  const lignes = Object.entries(panier).map(([cle, ligne]) => ({ cle, ...ligne }));
   const sousTotal = lignes.reduce((s, l) => {
+    if (l.avecPoints) return s;
     const p = produits.find((prod) => prod.id === l.produit_id);
     return s + (p?.prix ?? 0) * l.quantite;
   }, 0);
+  const pointsEngages = lignes.reduce((s, l) => {
+    if (!l.avecPoints) return s;
+    const p = produits.find((prod) => prod.id === l.produit_id);
+    return s + (p?.coutPoints ?? 0) * l.quantite;
+  }, 0);
+  const pointsRestants = soldePoints - pointsEngages;
   const zoneChoisie = zonesLivraison.find((z) => z.id === zoneLivraisonId);
   const fraisLivraison = zoneChoisie?.frais ?? 0;
   const total = sousTotal + fraisLivraison;
 
   function ajouter(p: ProduitMenu) {
     setMessage(null);
+    const cle = cleLigne(p.id);
     setPanier((prev) => {
-      const existant = prev[p.id];
-      return { ...prev, [p.id]: { produit_id: p.id, quantite: (existant?.quantite ?? 0) + 1 } };
+      const existant = prev[cle];
+      return { ...prev, [cle]: { produit_id: p.id, quantite: (existant?.quantite ?? 0) + 1 } };
     });
   }
 
-  function changerQuantite(produitId: string, delta: number) {
+  function echangerAvecPoints(p: ProduitMenu) {
+    if (!p.coutPoints || p.coutPoints > pointsRestants) return;
+    setMessage(null);
+    const cle = cleLigne(p.id, true);
     setPanier((prev) => {
-      const existant = prev[produitId];
+      const existant = prev[cle];
+      return {
+        ...prev,
+        [cle]: { produit_id: p.id, quantite: (existant?.quantite ?? 0) + 1, avecPoints: true },
+      };
+    });
+  }
+
+  function changerQuantite(cle: string, delta: number) {
+    setPanier((prev) => {
+      const existant = prev[cle];
       if (!existant) return prev;
       const quantite = existant.quantite + delta;
       if (quantite <= 0) {
-        const { [produitId]: _retire, ...reste } = prev;
+        const { [cle]: _retire, ...reste } = prev;
         return reste;
       }
-      return { ...prev, [produitId]: { ...existant, quantite } };
+      return { ...prev, [cle]: { ...existant, quantite } };
     });
   }
 
@@ -107,6 +147,7 @@ export function MenuClient({
       return setMessage("Choisissez votre zone de livraison.");
     }
     if (lignes.length === 0) return setMessage("Votre panier est vide.");
+    if (pointsEngages > soldePoints) return setMessage("Solde de points insuffisant.");
 
     startTransition(async () => {
       const res = await creerCommandeEnLigne({
@@ -115,7 +156,11 @@ export function MenuClient({
         adresseLivraison,
         zoneLivraisonId: zoneLivraisonId || null,
         modePaiement,
-        panier: lignes,
+        panier: lignes.map(({ produit_id, quantite, avecPoints }) => ({
+          produit_id,
+          quantite,
+          avecPoints,
+        })),
       });
       if (res.error) {
         setMessage(res.error);
@@ -130,9 +175,42 @@ export function MenuClient({
     });
   }
 
+  const produitsEchangeables = produits.filter((p) => p.coutPoints);
+
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
       <div className="flex flex-col gap-6">
+        {clientTelephone.trim() && soldePoints > 0 && produitsEchangeables.length > 0 && (
+          <section className="rounded-card border border-green/40 bg-green/5 p-5">
+            <h2 className="mb-1 font-display text-lg font-extrabold text-green">
+              🎁 Vos points de fidélité : {soldePoints}
+            </h2>
+            <p className="mb-4 text-xs text-ink-soft opacity-80">
+              1 point gagné par commande. Échangez-les contre un produit offert.
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {produitsEchangeables.map((p) => {
+                const accessible = (p.coutPoints ?? 0) <= pointsRestants;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => echangerAvecPoints(p)}
+                    disabled={!accessible}
+                    className={`rounded-[11px] border px-3 py-2.5 text-left transition ${
+                      accessible
+                        ? "border-green/40 bg-surface hover:border-green"
+                        : "cursor-not-allowed border-line bg-line/10 opacity-50"
+                    }`}
+                  >
+                    <div className="text-sm font-bold text-ink">{p.nom}</div>
+                    <div className="text-xs font-bold text-green">{p.coutPoints} pts</div>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {POLES.map((pole) => {
           const categories = produitsParPole[pole.value];
           const nomsCategories = Object.keys(categories);
@@ -205,25 +283,33 @@ export function MenuClient({
             {lignes.map((l) => {
               const p = produits.find((prod) => prod.id === l.produit_id);
               return (
-                <li key={l.produit_id} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="min-w-0 flex-1 truncate text-ink">{p?.nom}</span>
+                <li key={l.cle} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="min-w-0 flex-1 truncate text-ink">
+                    {p?.nom}
+                    {l.avecPoints && (
+                      <span className="ml-1 text-xs font-bold text-green">(points)</span>
+                    )}
+                  </span>
                   <div className="flex items-center gap-1.5">
                     <button
-                      onClick={() => changerQuantite(l.produit_id, -1)}
+                      onClick={() => changerQuantite(l.cle, -1)}
                       className="rounded-[6px] border border-line px-1.5 text-ink-soft hover:text-orange"
                     >
                       −
                     </button>
                     <span className="w-4 text-center font-bold text-ink">{l.quantite}</span>
                     <button
-                      onClick={() => changerQuantite(l.produit_id, 1)}
-                      className="rounded-[6px] border border-line px-1.5 text-ink-soft hover:text-orange"
+                      onClick={() => changerQuantite(l.cle, 1)}
+                      disabled={l.avecPoints && (p?.coutPoints ?? 0) > pointsRestants}
+                      className="rounded-[6px] border border-line px-1.5 text-ink-soft hover:text-orange disabled:cursor-not-allowed disabled:opacity-30"
                     >
                       +
                     </button>
                   </div>
                   <span className="w-16 text-right font-bold text-ink">
-                    {((p?.prix ?? 0) * l.quantite).toLocaleString("fr-FR")} F
+                    {l.avecPoints
+                      ? `${(p?.coutPoints ?? 0) * l.quantite} pts`
+                      : `${((p?.prix ?? 0) * l.quantite).toLocaleString("fr-FR")} F`}
                   </span>
                 </li>
               );
@@ -242,6 +328,12 @@ export function MenuClient({
               <span className="text-ink">
                 {zoneChoisie ? `${fraisLivraison.toLocaleString("fr-FR")} F` : "—"}
               </span>
+            </div>
+          )}
+          {pointsEngages > 0 && (
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-ink-soft">Points utilisés</span>
+              <span className="font-bold text-green">-{pointsEngages} pts</span>
             </div>
           )}
           <div className="flex items-center justify-between">
