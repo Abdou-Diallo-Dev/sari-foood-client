@@ -51,6 +51,22 @@ export default async function StatutCommandePage({
               ? `Votre commande n°${numero} a été transmise en cuisine.`
               : "Votre commande a été transmise en cuisine."}
           </p>
+          <div className="mt-2 flex w-full flex-col gap-2 sm:flex-row">
+            <a
+              href={`/commande/${id}/ticket`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 rounded-[11px] bg-orange px-4 py-2.5 text-center font-bold text-white transition"
+            >
+              Télécharger le ticket
+            </a>
+            <a
+              href="/"
+              className="flex-1 rounded-[11px] border border-line px-4 py-2.5 text-center font-bold text-ink-soft transition hover:border-orange hover:text-orange"
+            >
+              Retour à l&apos;accueil
+            </a>
+          </div>
         </>
       ) : (
         <>
@@ -58,6 +74,12 @@ export default async function StatutCommandePage({
           <p className="text-sm text-ink-soft">
             Le paiement n&apos;a pas abouti. Vous pouvez réessayer depuis l&apos;accueil.
           </p>
+          <a
+            href="/"
+            className="mt-2 rounded-[11px] border border-line px-4 py-2.5 text-center font-bold text-ink-soft transition hover:border-orange hover:text-orange"
+          >
+            Retour à l&apos;accueil
+          </a>
         </>
       )}
     </div>
