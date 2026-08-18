@@ -16,6 +16,7 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
   const [panier, setPanier] = useState<Record<string, LignePanier>>({});
   const [clientNom, setClientNom] = useState("");
   const [clientTelephone, setClientTelephone] = useState("");
+  const [adresseLivraison, setAdresseLivraison] = useState("");
   const [modePaiement, setModePaiement] = useState<ModePaiement>("wave");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -64,12 +65,14 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
     setMessage(null);
     if (!clientNom.trim()) return setMessage("Indiquez votre nom.");
     if (!clientTelephone.trim()) return setMessage("Indiquez votre numéro de téléphone.");
+    if (!adresseLivraison.trim()) return setMessage("Indiquez votre adresse de livraison.");
     if (lignes.length === 0) return setMessage("Votre panier est vide.");
 
     startTransition(async () => {
       const res = await creerCommandeEnLigne({
         clientNom,
         clientTelephone,
+        adresseLivraison,
         modePaiement,
         panier: lignes,
       });
@@ -101,11 +104,37 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
                         <button
                           key={p.id}
                           onClick={() => ajouter(p)}
-                          className="rounded-[11px] border border-line bg-paper px-3 py-2.5 text-left transition hover:border-orange"
+                          className="overflow-hidden rounded-[11px] border border-line bg-paper text-left transition hover:border-orange"
                         >
-                          <div className="text-sm font-bold text-ink">{p.nom}</div>
-                          <div className="text-xs font-bold text-orange">
-                            {p.prix.toLocaleString("fr-FR")} F
+                          <div className="aspect-square w-full bg-line/20">
+                            {p.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={p.imageUrl}
+                                alt={p.nom}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center text-ink-soft opacity-30">
+                                <svg
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth={1.8}
+                                  className="h-8 w-8"
+                                >
+                                  <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+                                  <circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none" />
+                                  <path d="m5 17 5-5 3 3 3-3.5 3.5 4" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                          <div className="px-3 py-2.5">
+                            <div className="text-sm font-bold text-ink">{p.nom}</div>
+                            <div className="text-xs font-bold text-orange">
+                              {p.prix.toLocaleString("fr-FR")} F
+                            </div>
                           </div>
                         </button>
                       ))}
@@ -173,6 +202,12 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
             onChange={(e) => setClientTelephone(e.target.value)}
             placeholder="Votre numéro de téléphone"
             type="tel"
+            className="rounded-[9px] border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-orange"
+          />
+          <input
+            value={adresseLivraison}
+            onChange={(e) => setAdresseLivraison(e.target.value)}
+            placeholder="Votre adresse de livraison"
             className="rounded-[9px] border border-line bg-paper px-3 py-2 text-sm text-ink outline-none focus:border-orange"
           />
         </div>

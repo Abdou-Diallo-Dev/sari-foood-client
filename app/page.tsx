@@ -16,7 +16,7 @@ export default async function AccueilPage() {
   const supabase = createPublicClient();
   const { data: produits } = await supabase
     .from("produits")
-    .select("id, nom, prix, actif, categorie_id, categories_produits(nom, pole)")
+    .select("id, nom, prix, actif, categorie_id, image_url, categories_produits(nom, pole)")
     .eq("restaurant_id", restaurantId)
     .eq("actif", true)
     .order("nom");
@@ -25,6 +25,7 @@ export default async function AccueilPage() {
     id: p.id,
     nom: p.nom,
     prix: Number(p.prix),
+    imageUrl: p.image_url,
     categorie: (p.categories_produits as unknown as { nom: string; pole: string } | null)?.nom ?? "",
     pole: (p.categories_produits as unknown as { nom: string; pole: string } | null)?.pole as
       | "patisserie"
