@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { creerCommandeEnLigne } from "./actions";
 import { MODES_PAIEMENT, type ModePaiement, type ProduitMenu } from "@/lib/types";
+import { lireClientInfo, ecrireClientInfo } from "@/lib/client-info";
 
 const POLES = [
   { value: "patisserie", label: "Pâtisserie" },
@@ -20,6 +21,14 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
   const [modePaiement, setModePaiement] = useState<ModePaiement>("wave");
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  useEffect(() => {
+    const info = lireClientInfo();
+    if (!info) return;
+    setClientNom(info.nom);
+    setClientTelephone(info.telephone);
+    setAdresseLivraison(info.adresse);
+  }, []);
 
   const produitsParPole = useMemo(() => {
     const groupes: Record<string, Record<string, ProduitMenu[]>> = {
@@ -79,6 +88,11 @@ export function MenuClient({ produits }: { produits: ProduitMenu[] }) {
       if (res.error) {
         setMessage(res.error);
       } else if (res.url) {
+        ecrireClientInfo({
+          nom: clientNom.trim(),
+          telephone: clientTelephone.trim(),
+          adresse: adresseLivraison.trim(),
+        });
         window.location.href = res.url;
       }
     });

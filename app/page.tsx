@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createPublicClient } from "@/lib/supabase/public";
 import { MenuClient } from "./menu-client";
 import type { ProduitMenu } from "@/lib/types";
@@ -35,9 +36,14 @@ export default async function AccueilPage() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6">
-      <header className="flex items-center gap-3">
-        <h1 className="font-display text-2xl font-extrabold text-ink">Sari Food</h1>
-        <span className="text-sm text-ink-soft">Commander en ligne</span>
+      <header className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h1 className="font-display text-2xl font-extrabold text-ink">Sari Food</h1>
+          <span className="text-sm text-ink-soft">Commander en ligne</span>
+        </div>
+        <Link href="/mes-commandes" className="text-sm font-bold text-orange hover:underline">
+          Mes commandes
+        </Link>
       </header>
 
       {produitsMenu.length === 0 ? (
