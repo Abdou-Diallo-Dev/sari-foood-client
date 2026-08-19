@@ -89,7 +89,12 @@ export function MenuClient({
 
   const polesVisibles = POLES.filter((pole) => Object.keys(produitsParPole[pole.value]).length > 0);
 
+  const categoriesVisibles = polesVisibles.flatMap((pole) =>
+    Object.keys(produitsParPole[pole.value]).map((nom) => ({ pole: pole.value, nom, cle: `${pole.value}::${nom}` })),
+  );
+
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const categorieRefs = useRef<Record<string, HTMLElement | null>>({});
   const [poleActif, setPoleActif] = useState<string>(polesVisibles[0]?.value ?? POLES[0].value);
 
   // Barre d'onglets figée : surligne le pôle actuellement visible pendant
@@ -114,6 +119,10 @@ export function MenuClient({
 
   function allerAuPole(pole: string) {
     sectionRefs.current[pole]?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function allerALaCategorie(cle: string) {
+    categorieRefs.current[cle]?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   const lignes = Object.entries(panier).map(([cle, ligne]) => ({ cle, ...ligne }));
@@ -209,19 +218,34 @@ export function MenuClient({
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
       <div className="flex flex-col gap-6">
-        {polesVisibles.length > 1 && (
-          <nav className="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto border-b border-line bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-card sm:border sm:px-3">
-            {polesVisibles.map((pole) => (
+        {(polesVisibles.length > 1 || categoriesVisibles.length > 1) && (
+          <nav className="sticky top-0 z-10 -mx-4 flex items-center gap-2 overflow-x-auto border-b border-line bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-card sm:border sm:px-3">
+            {polesVisibles.length > 1 &&
+              polesVisibles.map((pole) => (
+                <button
+                  key={pole.value}
+                  onClick={() => allerAuPole(pole.value)}
+                  className={`shrink-0 rounded-[9px] px-3 py-1.5 text-sm font-bold transition ${
+                    poleActif === pole.value
+                      ? "bg-orange text-white"
+                      : "text-ink-soft hover:bg-surface hover:text-ink"
+                  }`}
+                >
+                  {pole.label}
+                </button>
+              ))}
+
+            {polesVisibles.length > 1 && categoriesVisibles.length > 0 && (
+              <span className="h-5 w-px shrink-0 bg-line" />
+            )}
+
+            {categoriesVisibles.map((cat) => (
               <button
-                key={pole.value}
-                onClick={() => allerAuPole(pole.value)}
-                className={`shrink-0 rounded-[9px] px-3 py-1.5 text-sm font-bold transition ${
-                  poleActif === pole.value
-                    ? "bg-orange text-white"
-                    : "text-ink-soft hover:bg-surface hover:text-ink"
-                }`}
+                key={cat.cle}
+                onClick={() => allerALaCategorie(cat.cle)}
+                className="shrink-0 rounded-[9px] border border-line px-2.5 py-1 text-xs font-bold text-ink-soft transition hover:border-orange hover:text-orange"
               >
-                {pole.label}
+                {cat.nom}
               </button>
             ))}
           </nav>
@@ -275,7 +299,13 @@ export function MenuClient({
               <h2 className="mb-4 font-display text-lg font-extrabold text-orange">{pole.label}</h2>
               <div className="flex flex-col gap-4">
                 {nomsCategories.map((nomCategorie) => (
-                  <div key={nomCategorie}>
+                  <div
+                    key={nomCategorie}
+                    ref={(el) => {
+                      categorieRefs.current[`${pole.value}::${nomCategorie}`] = el;
+                    }}
+                    className="scroll-mt-16"
+                  >
                     <h3 className="mb-2 text-sm font-bold text-ink-soft">{nomCategorie}</h3>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                       {categories[nomCategorie].map((p) => (
