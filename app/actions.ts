@@ -47,6 +47,24 @@ export async function creerCommandeEnLigne(params: {
 
   const supabase = createAdminClient();
 
+  // Aucune commande en ligne sans une caisse ouverte pour la recevoir (elle
+  // doit pouvoir être encaissée dessus, cf. transactions_caisse) : on
+  // vérifie et on fige la session AVANT tout paiement, réel ou simulé — pas
+  // question de prendre l'argent du client puis découvrir qu'il n'y a
+  // personne pour traiter la commande.
+  const { data: sessionOuverte } = await supabase
+    .from("sessions_caisse")
+    .select("id")
+    .eq("restaurant_id", restaurantId)
+    .eq("statut", "ouverte")
+    .order("ouverte_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+
+  if (!sessionOuverte) {
+    return { error: "Les commandes en ligne sont momentanément indisponibles. Réessayez un peu plus tard." };
+  }
+
   // On ne fait jamais confiance au panier envoyé par le navigateur pour le
   // prix : chaque article est revérifié (existe, actif, bon restaurant) et
   // son prix/pôle recalculés depuis produits/categories_produits. Idem pour
@@ -145,6 +163,7 @@ export async function creerCommandeEnLigne(params: {
       zone_livraison_id: params.zoneLivraisonId,
       frais_livraison: fraisLivraison,
       points_utilises: pointsUtilises,
+      session_caisse_id: sessionOuverte.id,
       panier: panierValide,
       total,
       mode_paiement: params.modePaiement,
