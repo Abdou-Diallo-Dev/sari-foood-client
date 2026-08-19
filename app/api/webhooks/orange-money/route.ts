@@ -37,6 +37,8 @@ export async function POST(request: Request) {
   }
 
   if (payload.status === "SUCCESS") {
+    // Idem webhook Wave : la session de caisse est re-résolue à l'instant T
+    // dans la fonction, jamais la valeur figée au checkout (migration 0034).
     await supabase.rpc("materialiser_commande_en_ligne", {
       p_id: commandeEnLigneId,
       p_reference: payload.txnid ?? commandeEnLigne.reference_paiement,
