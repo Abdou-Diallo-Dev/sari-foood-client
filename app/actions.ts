@@ -47,11 +47,14 @@ export async function creerCommandeEnLigne(params: {
 
   const supabase = createAdminClient();
 
-  // Aucune commande en ligne sans une caisse ouverte pour la recevoir (elle
-  // doit pouvoir être encaissée dessus, cf. transactions_caisse) : on
-  // vérifie et on fige la session AVANT tout paiement, réel ou simulé — pas
-  // question de prendre l'argent du client puis découvrir qu'il n'y a
-  // personne pour traiter la commande.
+  // Filtre UX best-effort : évite d'engager un client dans un paiement s'il
+  // n'y a déjà aucune caisse ouverte. Ce n'est PAS la garantie finale — le
+  // paiement Wave/Orange Money se confirme de façon asynchrone (webhook),
+  // parfois bien après ce point, et la session ci-dessous peut avoir
+  // fermé entre-temps. La vérification qui compte réellement est celle,
+  // atomique, faite dans materialiser_commande_en_ligne au moment de la
+  // confirmation (migration 0034) — elle seule décide de la session à
+  // rattacher, jamais la valeur figée ici.
   const { data: sessionOuverte } = await supabase
     .from("sessions_caisse")
     .select("id")
@@ -163,6 +166,9 @@ export async function creerCommandeEnLigne(params: {
       zone_livraison_id: params.zoneLivraisonId,
       frais_livraison: fraisLivraison,
       points_utilises: pointsUtilises,
+      // Simple indice pour la matérialisation (session ouverte au moment du
+      // checkout) — pas une garantie : re-résolue atomiquement à la
+      // confirmation, cf. commentaire ci-dessus.
       session_caisse_id: sessionOuverte.id,
       panier: panierValide,
       total,

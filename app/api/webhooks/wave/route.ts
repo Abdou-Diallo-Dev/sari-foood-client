@@ -31,6 +31,10 @@ export async function POST(request: Request) {
   const supabase = createAdminClient();
 
   if (event.type === "checkout.session.completed" && event.data?.checkout_status === "complete") {
+    // La session de caisse mémorisée à la commande a pu fermer entre le
+    // checkout et ce webhook (confirmation asynchrone) : la fonction
+    // revérifie et re-résout elle-même la session à rattacher, jamais la
+    // valeur figée (migration 0034).
     await supabase.rpc("materialiser_commande_en_ligne", {
       p_id: commandeEnLigneId,
       p_reference: sessionId ?? commandeEnLigneId,

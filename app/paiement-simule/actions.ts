@@ -24,6 +24,11 @@ export async function simulerPaiementReussi(id: string): Promise<{ error?: strin
     return { error: "Simulation indisponible pour cette commande." };
   }
 
+  // materialiser_commande_en_ligne revérifie et re-résout elle-même la
+  // session de caisse à cet instant (migration 0034) — jamais la valeur
+  // figée à la commande, qui a pu fermer entre-temps. Un renvoi vide ici
+  // ne signifie donc pas "pas de caisse", seulement "commande introuvable
+  // ou déjà traitée".
   const supabase = createAdminClient();
   const { data: commandeId } = await supabase.rpc("materialiser_commande_en_ligne", {
     p_id: id,
