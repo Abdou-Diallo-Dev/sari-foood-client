@@ -214,9 +214,10 @@ export function MenuClient({
   }
 
   const produitsEchangeables = produits.filter((p) => p.coutPoints);
+  const nombreArticles = lignes.reduce((s, l) => s + l.quantite, 0);
 
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
+    <div className="grid min-w-0 grid-cols-1 gap-6 pb-24 lg:grid-cols-[1fr_340px] lg:pb-0">
       <div className="flex min-w-0 flex-col gap-6">
         {(polesVisibles.length > 1 || categoriesVisibles.length > 1) && (
           <nav className="sticky top-0 z-10 -mx-4 flex max-w-[100vw] items-center gap-2 overflow-x-auto border-b border-line bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:max-w-full sm:rounded-card sm:border sm:px-3">
@@ -262,17 +263,23 @@ export function MenuClient({
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
               {produitsEchangeables.map((p) => {
                 const accessible = (p.coutPoints ?? 0) <= pointsRestants;
+                const quantiteAjoutee = panier[cleLigne(p.id, true)]?.quantite ?? 0;
                 return (
                   <button
                     key={p.id}
                     onClick={() => echangerAvecPoints(p)}
                     disabled={!accessible}
-                    className={`rounded-[11px] border px-3 py-2.5 text-left transition ${
+                    className={`relative rounded-[11px] border px-3 py-2.5 text-left transition active:scale-[0.97] ${
                       accessible
                         ? "border-green/40 bg-surface hover:border-green"
                         : "cursor-not-allowed border-line bg-line/10 opacity-50"
                     }`}
                   >
+                    {quantiteAjoutee > 0 && (
+                      <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-green px-1 text-[11px] font-extrabold text-white shadow">
+                        {quantiteAjoutee}
+                      </span>
+                    )}
                     <div className="text-sm font-bold text-ink">{p.nom}</div>
                     <div className="text-xs font-bold text-green">{p.coutPoints} pts</div>
                   </button>
@@ -308,46 +315,56 @@ export function MenuClient({
                   >
                     <h3 className="mb-2 text-sm font-bold text-ink-soft">{nomCategorie}</h3>
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                      {categories[nomCategorie].map((p) => (
-                        <button
-                          key={p.id}
-                          onClick={() => ajouter(p)}
-                          className="overflow-hidden rounded-[11px] border border-line bg-paper text-left transition hover:border-orange"
-                        >
-                          <div className="aspect-square w-full bg-line/20">
-                            {p.imageUrl ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={p.imageUrl}
-                                alt={p.nom}
-                                loading="lazy"
-                                decoding="async"
-                                className="h-full w-full object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-full w-full items-center justify-center text-ink-soft opacity-30">
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth={1.8}
-                                  className="h-8 w-8"
-                                >
-                                  <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
-                                  <circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none" />
-                                  <path d="m5 17 5-5 3 3 3-3.5 3.5 4" />
-                                </svg>
-                              </div>
+                      {categories[nomCategorie].map((p) => {
+                        const quantiteAjoutee = panier[cleLigne(p.id)]?.quantite ?? 0;
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => ajouter(p)}
+                            className={`relative overflow-hidden rounded-[11px] border bg-paper text-left transition active:scale-[0.97] ${
+                              quantiteAjoutee > 0 ? "border-orange" : "border-line hover:border-orange"
+                            }`}
+                          >
+                            {quantiteAjoutee > 0 && (
+                              <span className="absolute right-1.5 top-1.5 z-10 flex h-6 min-w-6 items-center justify-center rounded-full bg-orange px-1.5 text-xs font-extrabold text-white shadow">
+                                {quantiteAjoutee}
+                              </span>
                             )}
-                          </div>
-                          <div className="px-3 py-2.5">
-                            <div className="text-sm font-bold text-ink">{p.nom}</div>
-                            <div className="text-xs font-bold text-orange">
-                              {p.prix.toLocaleString("fr-FR")} F
+                            <div className="aspect-square w-full bg-line/20">
+                              {p.imageUrl ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={p.imageUrl}
+                                  alt={p.nom}
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className="flex h-full w-full items-center justify-center text-ink-soft opacity-30">
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth={1.8}
+                                    className="h-8 w-8"
+                                  >
+                                    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+                                    <circle cx="9" cy="10" r="1.6" fill="currentColor" stroke="none" />
+                                    <path d="m5 17 5-5 3 3 3-3.5 3.5 4" />
+                                  </svg>
+                                </div>
+                              )}
                             </div>
-                          </div>
-                        </button>
-                      ))}
+                            <div className="px-3 py-2.5">
+                              <div className="text-sm font-bold text-ink">{p.nom}</div>
+                              <div className="text-xs font-bold text-orange">
+                                {p.prix.toLocaleString("fr-FR")} F
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
                 ))}
@@ -357,7 +374,25 @@ export function MenuClient({
         })}
       </div>
 
-      <aside className="flex h-fit flex-col gap-4 rounded-card border border-line bg-surface p-5 lg:sticky lg:top-6">
+      {nombreArticles > 0 && (
+        <button
+          onClick={() =>
+            document.getElementById("panier-panel")?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+          className="fixed inset-x-4 bottom-4 z-20 flex items-center justify-between rounded-[14px] bg-orange px-4 py-3 text-white shadow-lg transition active:scale-[0.98] lg:hidden"
+        >
+          <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-white/25 px-1.5 text-sm font-extrabold">
+            {nombreArticles}
+          </span>
+          <span className="font-display text-sm font-extrabold">Voir mon panier</span>
+          <span className="text-sm font-extrabold">{total.toLocaleString("fr-FR")} F</span>
+        </button>
+      )}
+
+      <aside
+        id="panier-panel"
+        className="flex h-fit scroll-mt-6 flex-col gap-4 rounded-card border border-line bg-surface p-5 lg:sticky lg:top-6"
+      >
         <h2 className="font-display text-lg font-extrabold text-ink">Votre commande</h2>
 
         {lignes.length === 0 ? (
