@@ -216,10 +216,10 @@ export function MenuClient({
   const produitsEchangeables = produits.filter((p) => p.coutPoints);
 
   return (
-    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
-      <div className="flex flex-col gap-6">
+    <div className="grid min-w-0 grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
+      <div className="flex min-w-0 flex-col gap-6">
         {(polesVisibles.length > 1 || categoriesVisibles.length > 1) && (
-          <nav className="sticky top-0 z-10 -mx-4 flex items-center gap-2 overflow-x-auto border-b border-line bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:rounded-card sm:border sm:px-3">
+          <nav className="sticky top-0 z-10 -mx-4 flex max-w-[100vw] items-center gap-2 overflow-x-auto border-b border-line bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:max-w-full sm:rounded-card sm:border sm:px-3">
             {polesVisibles.length > 1 &&
               polesVisibles.map((pole) => (
                 <button
