@@ -50,7 +50,7 @@ export default async function AccueilPage() {
   }));
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6">
+    <div className="mx-auto flex min-w-0 max-w-5xl flex-col gap-6 px-4 py-6">
       <header className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="font-display text-2xl font-extrabold text-ink">Sari Food</h1>
