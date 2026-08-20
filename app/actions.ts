@@ -1,8 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { creerCheckoutWave } from "@/lib/paiement/wave";
-import { creerCheckoutOrangeMoney } from "@/lib/paiement/orangeMoney";
+import { creerCheckoutPayDunya } from "@/lib/paiement/paydunya";
 import type { PanierItem, ModePaiement } from "@/lib/types";
 
 // Pas de solde stocké : on additionne le ledger points_fidelite_mouvements
@@ -24,7 +23,7 @@ export async function obtenirSoldePoints(telephone: string): Promise<number> {
 
 // Pour le bandeau "Reprendre mon paiement en attente" (lib/paiement-en-attente.ts) :
 // ne propose une reprise que si la commande est toujours en attente ET que le
-// paiement est encore en mode simulé — une fois de vraies clés Wave/Orange
+// paiement est encore en mode simulé — une fois de vraies clés PayDunya
 // configurées, l'URL de checkout externe n'est pas reconstructible depuis
 // notre seul id (elle vient d'un appel à leur API), donc rien à reprendre.
 export async function verifierPaiementEnAttente(
@@ -33,14 +32,13 @@ export async function verifierPaiementEnAttente(
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("commandes_en_ligne")
-    .select("statut, mode_paiement")
+    .select("statut")
     .eq("id", commandeId)
     .maybeSingle();
 
   if (!data || data.statut !== "en_attente") return { enAttente: false };
 
-  const cleManquante =
-    data.mode_paiement === "wave" ? !process.env.WAVE_API_KEY : !process.env.ORANGE_MONEY_MERCHANT_KEY;
+  const cleManquante = !process.env.PAYDUNYA_PRIVATE_KEY;
   if (!cleManquante) return { enAttente: false };
 
   return { enAttente: true, urlReprise: `/paiement-simule/${commandeId}` };
@@ -206,47 +204,32 @@ export async function creerCommandeEnLigne(params: {
   const successUrl = `${siteUrl}/commande/${commandeEnLigne.id}`;
   const errorUrl = `${siteUrl}/commande/${commandeEnLigne.id}?erreur=1`;
 
-  // Wave/Orange Money ne sont pas encore contractualisés (clés absentes) :
-  // en attendant, on route vers une page de paiement simulée pour pouvoir
-  // tester tout le parcours de commande. Se désactive automatiquement dès
-  // que la clé du moyen concerné est renseignée (cf. app/paiement-simule).
-  const cleManquante =
-    params.modePaiement === "wave" ? !process.env.WAVE_API_KEY : !process.env.ORANGE_MONEY_MERCHANT_KEY;
+  // PayDunya (test) pas encore configuré (clé absente) : en attendant, on
+  // route vers une page de paiement simulée pour pouvoir tester tout le
+  // parcours de commande. Se désactive automatiquement dès que les clés
+  // PayDunya sont renseignées (cf. app/paiement-simule).
+  const cleManquante = !process.env.PAYDUNYA_PRIVATE_KEY;
   if (cleManquante) {
     return { url: `${siteUrl}/paiement-simule/${commandeEnLigne.id}`, commandeId: commandeEnLigne.id };
   }
 
   try {
-    let checkoutUrl: string;
-    let reference: string;
-
-    if (params.modePaiement === "wave") {
-      const checkout = await creerCheckoutWave({
-        montant: total,
-        reference: commandeEnLigne.id,
-        successUrl,
-        errorUrl,
-      });
-      checkoutUrl = checkout.url;
-      reference = checkout.sessionId;
-    } else {
-      const checkout = await creerCheckoutOrangeMoney({
-        montant: total,
-        reference: commandeEnLigne.id,
-        successUrl,
-        cancelUrl: errorUrl,
-        notifUrl: `${siteUrl}/api/webhooks/orange-money`,
-      });
-      checkoutUrl = checkout.url;
-      reference = checkout.token;
-    }
+    const checkout = await creerCheckoutPayDunya({
+      montant: total,
+      reference: commandeEnLigne.id,
+      canal: params.modePaiement,
+      description: `Commande Sari Food — ${clientNom}`,
+      successUrl,
+      cancelUrl: errorUrl,
+      callbackUrl: `${siteUrl}/api/webhooks/paydunya`,
+    });
 
     await supabase
       .from("commandes_en_ligne")
-      .update({ reference_paiement: reference })
+      .update({ reference_paiement: checkout.token })
       .eq("id", commandeEnLigne.id);
 
-    return { url: checkoutUrl, commandeId: commandeEnLigne.id };
+    return { url: checkout.url, commandeId: commandeEnLigne.id };
   } catch {
     await supabase
       .from("commandes_en_ligne")

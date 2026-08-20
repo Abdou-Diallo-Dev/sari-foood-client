@@ -23,10 +23,7 @@ export default async function PaiementSimulePage({
 
   if (!commandeEnLigne) notFound();
 
-  const cleManquante =
-    commandeEnLigne.mode_paiement === "wave"
-      ? !process.env.WAVE_API_KEY
-      : !process.env.ORANGE_MONEY_MERCHANT_KEY;
+  const cleManquante = !process.env.PAYDUNYA_PRIVATE_KEY;
 
   if (!cleManquante || commandeEnLigne.statut !== "en_attente") notFound();
 
@@ -39,8 +36,8 @@ export default async function PaiementSimulePage({
         Paiement {LABELS_MODE[commandeEnLigne.mode_paiement] ?? commandeEnLigne.mode_paiement}
       </h1>
       <p className="text-sm text-ink-soft">
-        Les identifiants {LABELS_MODE[commandeEnLigne.mode_paiement]} ne sont pas encore configurés.
-        Cet écran simule l&apos;issue du paiement pour tester la commande de bout en bout.
+        Les identifiants PayDunya ne sont pas encore configurés. Cet écran simule l&apos;issue du
+        paiement pour tester la commande de bout en bout.
       </p>
       <p className="font-display text-2xl font-extrabold text-ink">
         {Number(commandeEnLigne.total).toLocaleString("fr-FR")} F
