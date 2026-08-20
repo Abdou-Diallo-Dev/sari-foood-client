@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { lireClientInfo } from "@/lib/client-info";
 import { ecrirePanierPrefill } from "@/lib/panier-prefill";
-import { obtenirSoldePoints } from "../actions";
+import { ecrirePaiementEnAttente } from "@/lib/paiement-en-attente";
+import { obtenirSoldePoints, verifierPaiementEnAttente } from "../actions";
 import { rechercherCommandes, type CommandeHistorique } from "./actions";
 
 const LABELS_STATUT: Record<CommandeHistorique["statut"], { label: string; couleur: string }> = {
@@ -25,6 +26,24 @@ export default function MesCommandesPage() {
   function commanderANouveau(commande: CommandeHistorique) {
     ecrirePanierPrefill(commande.panier);
     router.push("/");
+  }
+
+  // "En attente" ne veut pas forcément dire reprenable : le paiement a pu
+  // aboutir/échouer entre-temps sur un autre onglet, ou de vraies clés
+  // Wave/Orange ont pu être configurées depuis (plus d'URL de reprise
+  // reconstructible, cf. verifierPaiementEnAttente). On revérifie donc
+  // toujours côté serveur au clic plutôt que de faire confiance au statut
+  // affiché.
+  function poursuivreCommande(commande: CommandeHistorique) {
+    startTransition(async () => {
+      const res = await verifierPaiementEnAttente(commande.id);
+      if (res.enAttente && res.urlReprise) {
+        ecrirePaiementEnAttente(commande.id);
+        router.push(res.urlReprise);
+        return;
+      }
+      setCommandes(await rechercherCommandes(telephone));
+    });
   }
 
   useEffect(() => {
@@ -118,6 +137,15 @@ export default function MesCommandesPage() {
                 )}
 
                 <div className="flex items-center gap-3 border-t border-line pt-2">
+                  {c.statut === "en_attente" && (
+                    <button
+                      onClick={() => poursuivreCommande(c)}
+                      disabled={isPending}
+                      className="text-xs font-bold text-orange hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      Poursuivre ma commande
+                    </button>
+                  )}
                   <button
                     onClick={() => commanderANouveau(c)}
                     className="text-xs font-bold text-orange hover:underline"
