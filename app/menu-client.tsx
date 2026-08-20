@@ -96,6 +96,7 @@ export function MenuClient({
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
   const categorieRefs = useRef<Record<string, HTMLElement | null>>({});
   const [poleActif, setPoleActif] = useState<string>(polesVisibles[0]?.value ?? POLES[0].value);
+  const [categorieActive, setCategorieActive] = useState<string>(categoriesVisibles[0]?.cle ?? "");
 
   // Barre d'onglets figée : surligne le pôle actuellement visible pendant
   // le scroll, plutôt que de dépendre d'un seul clic pour se repérer.
@@ -110,6 +111,27 @@ export function MenuClient({
 
     for (const pole of polesVisibles) {
       const el = sectionRefs.current[pole.value];
+      if (el) observer.observe(el);
+    }
+
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sections stables tant que produits ne change pas
+  }, [produits]);
+
+  // Même principe pour les catégories : sans ça, seuls les 3 pôles se
+  // surlignaient pendant le scroll, les catégories restaient toutes dans le
+  // même état visuel quelle que soit la position réelle dans la page.
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entrees) => {
+        const visible = entrees.find((e) => e.isIntersecting);
+        if (visible) setCategorieActive(visible.target.getAttribute("data-categorie") ?? "");
+      },
+      { rootMargin: "-15% 0px -70% 0px" },
+    );
+
+    for (const cat of categoriesVisibles) {
+      const el = categorieRefs.current[cat.cle];
       if (el) observer.observe(el);
     }
 
@@ -244,7 +266,11 @@ export function MenuClient({
               <button
                 key={cat.cle}
                 onClick={() => allerALaCategorie(cat.cle)}
-                className="shrink-0 rounded-[9px] border border-line px-2.5 py-1 text-xs font-bold text-ink-soft transition hover:border-orange hover:text-orange"
+                className={`shrink-0 rounded-[9px] border px-2.5 py-1 text-xs font-bold transition ${
+                  categorieActive === cat.cle
+                    ? "border-orange bg-orange/10 text-orange"
+                    : "border-line text-ink-soft hover:border-orange hover:text-orange"
+                }`}
               >
                 {cat.nom}
               </button>
@@ -311,6 +337,7 @@ export function MenuClient({
                     ref={(el) => {
                       categorieRefs.current[`${pole.value}::${nomCategorie}`] = el;
                     }}
+                    data-categorie={`${pole.value}::${nomCategorie}`}
                     className="scroll-mt-16"
                   >
                     <h3 className="mb-2 text-sm font-bold text-ink-soft">{nomCategorie}</h3>
