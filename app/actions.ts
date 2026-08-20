@@ -22,6 +22,30 @@ export async function obtenirSoldePoints(telephone: string): Promise<number> {
   return (data ?? []).reduce((s, m) => s + m.delta, 0);
 }
 
+// Pour le bandeau "Reprendre mon paiement en attente" (lib/paiement-en-attente.ts) :
+// ne propose une reprise que si la commande est toujours en attente ET que le
+// paiement est encore en mode simulé — une fois de vraies clés Wave/Orange
+// configurées, l'URL de checkout externe n'est pas reconstructible depuis
+// notre seul id (elle vient d'un appel à leur API), donc rien à reprendre.
+export async function verifierPaiementEnAttente(
+  commandeId: string,
+): Promise<{ enAttente: boolean; urlReprise?: string }> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("commandes_en_ligne")
+    .select("statut, mode_paiement")
+    .eq("id", commandeId)
+    .maybeSingle();
+
+  if (!data || data.statut !== "en_attente") return { enAttente: false };
+
+  const cleManquante =
+    data.mode_paiement === "wave" ? !process.env.WAVE_API_KEY : !process.env.ORANGE_MONEY_MERCHANT_KEY;
+  if (!cleManquante) return { enAttente: false };
+
+  return { enAttente: true, urlReprise: `/paiement-simule/${commandeId}` };
+}
+
 export async function creerCommandeEnLigne(params: {
   clientNom: string;
   clientTelephone: string;
@@ -29,7 +53,7 @@ export async function creerCommandeEnLigne(params: {
   zoneLivraisonId: string | null;
   modePaiement: ModePaiement;
   panier: PanierItem[];
-}): Promise<{ error?: string; url?: string }> {
+}): Promise<{ error?: string; url?: string; commandeId?: string }> {
   const restaurantId = process.env.NEXT_PUBLIC_RESTAURANT_ID;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (!restaurantId || !siteUrl) return { error: "Configuration du site incomplète." };
@@ -189,7 +213,7 @@ export async function creerCommandeEnLigne(params: {
   const cleManquante =
     params.modePaiement === "wave" ? !process.env.WAVE_API_KEY : !process.env.ORANGE_MONEY_MERCHANT_KEY;
   if (cleManquante) {
-    return { url: `${siteUrl}/paiement-simule/${commandeEnLigne.id}` };
+    return { url: `${siteUrl}/paiement-simule/${commandeEnLigne.id}`, commandeId: commandeEnLigne.id };
   }
 
   try {
@@ -222,7 +246,7 @@ export async function creerCommandeEnLigne(params: {
       .update({ reference_paiement: reference })
       .eq("id", commandeEnLigne.id);
 
-    return { url: checkoutUrl };
+    return { url: checkoutUrl, commandeId: commandeEnLigne.id };
   } catch {
     await supabase
       .from("commandes_en_ligne")

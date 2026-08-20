@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
-import { creerCommandeEnLigne, obtenirSoldePoints } from "./actions";
+import { creerCommandeEnLigne, obtenirSoldePoints, verifierPaiementEnAttente } from "./actions";
 import { MODES_PAIEMENT, type ModePaiement, type ProduitMenu, type ZoneLivraison } from "@/lib/types";
 import { lireClientInfo, ecrireClientInfo } from "@/lib/client-info";
 import { lirePanierPrefill } from "@/lib/panier-prefill";
+import { lirePaiementEnAttente, ecrirePaiementEnAttente, effacerPaiementEnAttente } from "@/lib/paiement-en-attente";
 
 const POLES = [
   { value: "patisserie", label: "Pâtisserie" },
@@ -34,6 +35,23 @@ export function MenuClient({
   const [soldePoints, setSoldePoints] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [urlPaiementEnAttente, setUrlPaiementEnAttente] = useState<string | null>(null);
+
+  // Bandeau de reprise si le client a quitté l'écran de paiement simulé sans
+  // finaliser (cf. lib/paiement-en-attente.ts) : on revérifie toujours côté
+  // serveur que la commande est encore en attente avant de proposer un lien,
+  // au cas où elle aurait été payée/expirée entre-temps sur un autre onglet.
+  useEffect(() => {
+    const enAttente = lirePaiementEnAttente();
+    if (!enAttente) return;
+    verifierPaiementEnAttente(enAttente.commandeId).then((res) => {
+      if (res.enAttente && res.urlReprise) {
+        setUrlPaiementEnAttente(res.urlReprise);
+      } else {
+        effacerPaiementEnAttente();
+      }
+    });
+  }, []);
 
   useEffect(() => {
     const info = lireClientInfo();
@@ -230,6 +248,7 @@ export function MenuClient({
           telephone: clientTelephone.trim(),
           adresse: adresseLivraison.trim(),
         });
+        if (res.commandeId) ecrirePaiementEnAttente(res.commandeId);
         window.location.href = res.url;
       }
     });
@@ -241,6 +260,16 @@ export function MenuClient({
   return (
     <div className="grid min-w-0 grid-cols-1 gap-6 pb-24 lg:grid-cols-[1fr_340px] lg:pb-0">
       <div className="flex min-w-0 flex-col gap-6">
+        {urlPaiementEnAttente && (
+          <a
+            href={urlPaiementEnAttente}
+            className="flex items-center justify-between gap-3 rounded-card border border-orange bg-orange/10 px-4 py-3 text-sm font-bold text-orange transition hover:bg-orange/15"
+          >
+            <span>Vous avez un paiement en attente</span>
+            <span className="shrink-0 underline">Reprendre →</span>
+          </a>
+        )}
+
         {(polesVisibles.length > 1 || categoriesVisibles.length > 1) && (
           <nav className="sticky top-0 z-10 -mx-4 flex max-w-[100vw] items-center gap-2 overflow-x-auto border-b border-line bg-paper/95 px-4 py-3 backdrop-blur sm:mx-0 sm:max-w-full sm:rounded-card sm:border sm:px-3">
             {polesVisibles.length > 1 &&
