@@ -3,6 +3,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PanierItem, ModePaiement } from "@/lib/types";
 
+const WAVE_PAYMENT_URL = "https://pay.wave.com/m/M_sn_wKEaRIzrHnhr/c/sn/";
+
 // Pas de solde stocké : on additionne le ledger points_fidelite_mouvements
 // (+1/commande payée, -coût lors d'un échange — cf. migration 0031).
 export async function obtenirSoldePoints(telephone: string): Promise<number> {
@@ -46,8 +48,7 @@ export async function creerCommandeEnLigne(params: {
   panier: PanierItem[];
 }): Promise<{ error?: string; url?: string; commandeId?: string }> {
   const restaurantId = process.env.NEXT_PUBLIC_RESTAURANT_ID;
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!restaurantId || !siteUrl) return { error: "Configuration du site incomplète." };
+  if (!restaurantId) return { error: "Configuration du site incomplète." };
 
   const clientNom = params.clientNom.trim();
   const clientTelephone = params.clientTelephone.trim();
@@ -56,7 +57,7 @@ export async function creerCommandeEnLigne(params: {
   if (!clientTelephone) return { error: "Le numéro de téléphone est obligatoire." };
   if (!adresseLivraison) return { error: "L'adresse de livraison est obligatoire." };
   if (params.panier.length === 0) return { error: "Le panier est vide." };
-  if (params.modePaiement !== "wave" && params.modePaiement !== "orange_money") {
+  if (params.modePaiement !== "wave") {
     return { error: "Moyen de paiement invalide." };
   }
 
@@ -194,8 +195,5 @@ export async function creerCommandeEnLigne(params: {
 
   if (insertError || !commandeEnLigne) return { error: "Impossible d'enregistrer la commande." };
 
-  // Mode simulation uniquement (pas de passerelle de paiement réelle) : le
-  // client valide/échoue son paiement directement dans l'interface, cf.
-  // app/paiement-simule.
-  return { url: `${siteUrl}/paiement-simule/${commandeEnLigne.id}`, commandeId: commandeEnLigne.id };
+  return { url: WAVE_PAYMENT_URL, commandeId: commandeEnLigne.id };
 }

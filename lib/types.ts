@@ -22,7 +22,9 @@ export type ZoneLivraison = {
 
 export const MODES_PAIEMENT = [
   { value: "wave", label: "Wave" },
-  { value: "orange_money", label: "Orange Money" },
 ] as const;
 
 export type ModePaiement = (typeof MODES_PAIEMENT)[number]["value"];
+
+// Lien de paiement Wave fixe (Sari Food)
+export const WAVE_PAYMENT_URL = "https://pay.wave.com/m/M_sn_wKEaRIzrHnhr/c/sn/";

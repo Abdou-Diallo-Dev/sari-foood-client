@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { creerCommandeEnLigne, obtenirSoldePoints, verifierPaiementEnAttente } from "./actions";
-import { MODES_PAIEMENT, type ModePaiement, type ProduitMenu, type ZoneLivraison } from "@/lib/types";
+import { type ModePaiement, type ProduitMenu, type ZoneLivraison } from "@/lib/types";
 import { lireClientInfo, ecrireClientInfo } from "@/lib/client-info";
 import { lirePanierPrefill } from "@/lib/panier-prefill";
 import { lirePaiementEnAttente, ecrirePaiementEnAttente, effacerPaiementEnAttente } from "@/lib/paiement-en-attente";
@@ -31,7 +31,7 @@ export function MenuClient({
   const [clientTelephone, setClientTelephone] = useState("");
   const [adresseLivraison, setAdresseLivraison] = useState("");
   const [zoneLivraisonId, setZoneLivraisonId] = useState("");
-  const [modePaiement, setModePaiement] = useState<ModePaiement>("wave");
+  const modePaiement: ModePaiement = "wave";
   const [soldePoints, setSoldePoints] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -576,23 +576,12 @@ export function MenuClient({
           />
         </div>
 
-        <div>
-          <p className="mb-1.5 text-xs font-bold text-ink-soft">Moyen de paiement</p>
-          <div className="flex gap-2">
-            {MODES_PAIEMENT.map((m) => (
-              <button
-                key={m.value}
-                onClick={() => setModePaiement(m.value)}
-                className={`flex-1 rounded-[9px] border px-2 py-1.5 text-xs font-bold transition ${
-                  modePaiement === m.value
-                    ? "border-orange bg-orange text-white"
-                    : "border-line bg-paper text-ink-soft"
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-2 rounded-[9px] border border-line bg-paper px-3 py-2">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="h-4 w-4 shrink-0 text-orange">
+            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" />
+            <path d="m9 12 2 2 4-4" />
+          </svg>
+          <span className="text-xs font-bold text-ink-soft">Paiement via <span className="text-orange">Wave</span></span>
         </div>
 
         <button
