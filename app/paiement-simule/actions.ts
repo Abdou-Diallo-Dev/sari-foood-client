@@ -2,10 +2,8 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 
-// Réservé à la phase de test tant que PayDunya n'est pas configuré (cf.
-// app/actions.ts). Se referme d'elle-même dès que les clés PayDunya sont
-// renseignées, pour qu'un lien de simulation ne puisse jamais valider un
-// vrai paiement.
+// Mode simulation uniquement : n'autorise la validation/l'échec simulé que
+// tant que la commande est encore en attente de paiement.
 async function simulationAutorisee(id: string): Promise<boolean> {
   const supabase = createAdminClient();
   const { data } = await supabase
@@ -14,9 +12,7 @@ async function simulationAutorisee(id: string): Promise<boolean> {
     .eq("id", id)
     .maybeSingle();
 
-  if (!data || data.statut !== "en_attente") return false;
-
-  return !process.env.PAYDUNYA_PRIVATE_KEY;
+  return !!data && data.statut === "en_attente";
 }
 
 export async function simulerPaiementReussi(id: string): Promise<{ error?: string }> {

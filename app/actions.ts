@@ -1,7 +1,6 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { creerCheckoutPayDunya } from "@/lib/paiement/paydunya";
 import type { PanierItem, ModePaiement } from "@/lib/types";
 
 // Pas de solde stocké : on additionne le ledger points_fidelite_mouvements
@@ -22,10 +21,7 @@ export async function obtenirSoldePoints(telephone: string): Promise<number> {
 }
 
 // Pour le bandeau "Reprendre mon paiement en attente" (lib/paiement-en-attente.ts) :
-// ne propose une reprise que si la commande est toujours en attente ET que le
-// paiement est encore en mode simulé — une fois de vraies clés PayDunya
-// configurées, l'URL de checkout externe n'est pas reconstructible depuis
-// notre seul id (elle vient d'un appel à leur API), donc rien à reprendre.
+// ne propose une reprise que si la commande est toujours en attente.
 export async function verifierPaiementEnAttente(
   commandeId: string,
 ): Promise<{ enAttente: boolean; urlReprise?: string }> {
@@ -37,9 +33,6 @@ export async function verifierPaiementEnAttente(
     .maybeSingle();
 
   if (!data || data.statut !== "en_attente") return { enAttente: false };
-
-  const cleManquante = !process.env.PAYDUNYA_PRIVATE_KEY;
-  if (!cleManquante) return { enAttente: false };
 
   return { enAttente: true, urlReprise: `/paiement-simule/${commandeId}` };
 }
@@ -201,40 +194,8 @@ export async function creerCommandeEnLigne(params: {
 
   if (insertError || !commandeEnLigne) return { error: "Impossible d'enregistrer la commande." };
 
-  const successUrl = `${siteUrl}/commande/${commandeEnLigne.id}`;
-  const errorUrl = `${siteUrl}/commande/${commandeEnLigne.id}?erreur=1`;
-
-  // PayDunya (test) pas encore configuré (clé absente) : en attendant, on
-  // route vers une page de paiement simulée pour pouvoir tester tout le
-  // parcours de commande. Se désactive automatiquement dès que les clés
-  // PayDunya sont renseignées (cf. app/paiement-simule).
-  const cleManquante = !process.env.PAYDUNYA_PRIVATE_KEY;
-  if (cleManquante) {
-    return { url: `${siteUrl}/paiement-simule/${commandeEnLigne.id}`, commandeId: commandeEnLigne.id };
-  }
-
-  try {
-    const checkout = await creerCheckoutPayDunya({
-      montant: total,
-      reference: commandeEnLigne.id,
-      canal: params.modePaiement,
-      description: `Commande Sari Food — ${clientNom}`,
-      successUrl,
-      cancelUrl: errorUrl,
-      callbackUrl: `${siteUrl}/api/webhooks/paydunya`,
-    });
-
-    await supabase
-      .from("commandes_en_ligne")
-      .update({ reference_paiement: checkout.token })
-      .eq("id", commandeEnLigne.id);
-
-    return { url: checkout.url, commandeId: commandeEnLigne.id };
-  } catch {
-    await supabase
-      .from("commandes_en_ligne")
-      .update({ statut: "echouee" })
-      .eq("id", commandeEnLigne.id);
-    return { error: "Impossible de démarrer le paiement. Réessayez." };
-  }
+  // Mode simulation uniquement (pas de passerelle de paiement réelle) : le
+  // client valide/échoue son paiement directement dans l'interface, cf.
+  // app/paiement-simule.
+  return { url: `${siteUrl}/paiement-simule/${commandeEnLigne.id}`, commandeId: commandeEnLigne.id };
 }
