@@ -1,9 +1,8 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { PanierItem, ModePaiement } from "@/lib/types";
+import { type PanierItem, type ModePaiement, WAVE_PAYMENT_URL } from "@/lib/types";
 
-const WAVE_PAYMENT_URL = "https://pay.wave.com/m/M_sn_wKEaRIzrHnhr/c/sn/";
 
 // Pas de solde stocké : on additionne le ledger points_fidelite_mouvements
 // (+1/commande payée, -coût lors d'un échange — cf. migration 0031).
@@ -195,5 +194,6 @@ export async function creerCommandeEnLigne(params: {
 
   if (insertError || !commandeEnLigne) return { error: "Impossible d'enregistrer la commande." };
 
-  return { url: WAVE_PAYMENT_URL, commandeId: commandeEnLigne.id };
+  return { url: `/paiement-simule/${commandeEnLigne.id}`, commandeId: commandeEnLigne.id };
+
 }

@@ -27,4 +27,5 @@ export const MODES_PAIEMENT = [
 export type ModePaiement = (typeof MODES_PAIEMENT)[number]["value"];
 
 // Lien de paiement Wave fixe (Sari Food)
-export const WAVE_PAYMENT_URL = "https://pay.wave.com/m/M_sn_wKEaRIzrHnhr/c/sn/";
+export const WAVE_PAYMENT_URL = "https://pay.wave.com/m/M_sn_wKEaRIzrHnhr";
+
