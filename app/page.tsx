@@ -3,6 +3,11 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { MenuClient } from "./menu-client";
 import type { ProduitMenu, ZoneLivraison } from "@/lib/types";
 
+// Désactive le cache statique de Next.js : le menu (produits, images) doit
+// toujours refléter l'état courant de la base, sinon les ajouts/modifs
+// côté admin ne s'affichent pas ici avant un redéploiement.
+export const dynamic = "force-dynamic";
+
 export default async function AccueilPage() {
   const restaurantId = process.env.NEXT_PUBLIC_RESTAURANT_ID;
 
