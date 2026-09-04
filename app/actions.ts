@@ -194,6 +194,30 @@ export async function creerCommandeEnLigne(params: {
 
   if (insertError || !commandeEnLigne) return { error: "Impossible d'enregistrer la commande." };
 
-  return { url: `/paiement-simule/${commandeEnLigne.id}`, commandeId: commandeEnLigne.id };
+  // Notifie en temps réel le personnel de caisse et de gestion du restaurant
+  // pour faire sonner l'app (NotificationSound) et afficher la commande en attente
+  try {
+    const { data: destinataires } = await supabase
+      .from("utilisateurs")
+      .select("id")
+      .eq("actif", true)
+      .in("role", ["caissiere", "manager", "admin"])
+      .or(`restaurant_id.eq.${restaurantId},restaurant_id.is.null`);
 
+    if (destinataires && destinataires.length > 0) {
+      await supabase.from("notifications").insert(
+        destinataires.map((u) => ({
+          restaurant_id: restaurantId,
+          destinataire_id: u.id,
+          type: "commande_en_ligne",
+          message: `Nouvelle commande en ligne de ${clientNom} (${total.toLocaleString("fr-FR")} F) — Paiement Wave à confirmer`,
+          lien: "/pos",
+        }))
+      );
+    }
+  } catch (notifErr) {
+    console.error("Erreur notification commande en ligne:", notifErr);
+  }
+
+  return { url: `/paiement-simule/${commandeEnLigne.id}`, commandeId: commandeEnLigne.id };
 }
